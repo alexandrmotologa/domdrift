@@ -1,0 +1,38 @@
+# domdrift job configuration
+version: "1.0"
+target:
+  url: "http://127.0.0.1:9090/v1"
+  wait_until: "networkidle"
+  timeout_seconds: 30
+  stealth: true
+
+schema: "examples/schemas/ecommerce_product.json"
+
+pipeline:
+  tier1_enabled: true
+  tier2_enabled: true
+  tier3_enabled: true
+  max_retries: 3
+  cache_file: "selectors.cache.json"
+
+vision:
+  provider: "gemini" # gemini, openai, or local-heuristic
+  model: "gemini-2.5-flash"
+  api_key_env: "GEMINI_API_KEY"
+  fallback_to_heuristic: true
+
+export:
+  jsonl:
+    enabled: true
+    path: "out/products.jsonl"
+  parquet:
+    enabled: false
+    path: "out/products.parquet"
+  webhook:
+    enabled: false
+    url: "https://example.com/api/webhooks/extraction"
+    secret_env: "DOMDRIFT_WEBHOOK_SECRET"
+
+server:
+  port: 8282
+  enable_studio: true

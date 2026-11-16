@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JobPosting",
+  "type": "object",
+  "required": ["title", "company", "location"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Job posting title or role designation",
+      "semanticRole": "heading",
+      "initialSelector": ".job-title, h1.role-title, [data-testid='job-title']"
+    },
+    "company": {
+      "type": "string",
+      "description": "Hiring organization or employer name",
+      "semanticRole": "organization",
+      "initialSelector": ".company-name, .employer-name, [data-testid='company']"
+    },
+    "location": {
+      "type": "string",
+      "description": "Geographic workplace location or remote status",
+      "semanticRole": "location",
+      "initialSelector": ".job-location, .workplace-type, [data-testid='location']"
+    },
+    "salary": {
+      "type": "string",
+      "description": "Compensation range or offered salary",
+      "semanticRole": "compensation",
+      "initialSelector": ".salary-range, .compensation, [data-testid='salary']"
+    },
+    "employmentType": {
+      "type": "string",
+      "description": "Full-time, part-time, or contract classification",
+      "semanticRole": "classification",
+      "initialSelector": ".job-type, .employment-type, [data-testid='employment-type']"
+    }
+  }
+}
