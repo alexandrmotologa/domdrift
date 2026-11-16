@@ -178,9 +178,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Top Header Bar */}
-      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between">
+      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50 px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
             <Zap className="w-4 h-4 text-emerald-400" />
           </div>
           <div>
@@ -196,7 +196,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-mono w-full sm:w-auto justify-start sm:justify-end">
           <a
             href="/metrics"
             target="_blank"
@@ -211,7 +211,7 @@ export default function App() {
             <span>SSE {sseConnected ? 'Streaming' : 'Connecting'}</span>
           </div>
           <div className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-400">
-            Memory Target: <span className="text-emerald-400">&lt; 20MB RAM</span>
+            Memory: <span className="text-emerald-400">&lt; 20MB RAM</span>
           </div>
         </div>
       </header>

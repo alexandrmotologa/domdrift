@@ -100,12 +100,12 @@ export const LiveBrowserView: React.FC<LiveBrowserViewProps> = ({
   return (
     <div className="bg-slate-900/70 border border-slate-800 rounded-xl overflow-hidden flex flex-col h-full shadow-lg backdrop-blur relative">
       {/* Browser Bar */}
-      <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between gap-3 text-xs z-10">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div className="bg-slate-900 border-b border-slate-800 px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 text-xs z-10">
+        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
           <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           <span className="font-mono text-slate-300 truncate">{url || 'No active URL loaded'}</span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <button
             onClick={() => setInspectMode(!inspectMode)}
             className={`px-2.5 py-1 rounded flex items-center gap-1.5 font-mono text-[11px] transition ${
