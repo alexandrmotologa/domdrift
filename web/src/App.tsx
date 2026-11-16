@@ -1,10 +1,43 @@
 import React, { useState, useEffect } from 'react'
-import { Sparkles, Activity, Shield, Terminal, Zap, Radio } from 'lucide-react'
+import { Sparkles, Activity, Shield, Terminal, Zap, Radio, BarChart3 } from 'lucide-react'
 import { LiveBrowserView } from './components/LiveBrowserView.tsx'
 import { DriftTimeline, DriftEvent } from './components/DriftTimeline.tsx'
 import { SchemaEditor } from './components/SchemaEditor.tsx'
 import { SelectorHealth, CachedSelectorEntry } from './components/SelectorHealth.tsx'
 import { ExtractionData } from './components/ExtractionData.tsx'
+
+const INITIAL_SCHEMA = {
+  title: "EcommerceProduct",
+  type: "object",
+  required: ["title", "price"],
+  properties: {
+    title: {
+      type: "string",
+      description: "Product display name",
+      semanticRole: "heading",
+      initialSelector: ".product-title, h1.title, [data-testid='product-title']"
+    },
+    price: {
+      type: "string",
+      description: "Current product selling price",
+      semanticRole: "price",
+      pattern: "[$€£¥₹]?\\s*[0-9]+([.,][0-9]{2})?",
+      initialSelector: ".product-price, .price-tag, [data-testid='price']"
+    },
+    availability: {
+      type: "string",
+      description: "Stock status",
+      semanticRole: "status",
+      initialSelector: ".stock-status, .availability, [data-testid='stock']"
+    },
+    sku: {
+      type: "string",
+      description: "Item SKU or identifier",
+      semanticRole: "identifier",
+      initialSelector: ".sku-code, .product-sku, [data-testid='sku']"
+    }
+  }
+}
 
 export default function App() {
   const [currentUrl, setCurrentUrl] = useState('')
@@ -13,6 +46,7 @@ export default function App() {
   const [driftEvents, setDriftEvents] = useState<DriftEvent[]>([])
   const [cacheData, setCacheData] = useState<Record<string, Record<string, CachedSelectorEntry>>>({})
   const [sseConnected, setSseConnected] = useState(false)
+  const [schemaJson, setSchemaJson] = useState(JSON.stringify(INITIAL_SCHEMA, null, 2))
 
   // Fetch initial cache data and drift history
   const fetchStatus = async () => {
@@ -88,8 +122,13 @@ export default function App() {
       })
 
       if (res.ok) {
-        const record = await res.json()
-        setLastRecord(record)
+        const result = await res.json()
+        // If result is array (multi-card list), pick first for preview
+        if (Array.isArray(result)) {
+          setLastRecord(result[0] || null)
+        } else {
+          setLastRecord(result)
+        }
         fetchStatus()
       } else {
         const errText = await res.text()
@@ -112,6 +151,30 @@ export default function App() {
     }
   }
 
+  const handleAddInspectedField = (name: string, selector: string, semanticRole: string) => {
+    try {
+      const parsed = JSON.parse(schemaJson)
+      if (!parsed.properties) parsed.properties = {}
+
+      let uniqueName = name
+      let counter = 1
+      while (parsed.properties[uniqueName]) {
+        uniqueName = `${name}_${counter++}`
+      }
+
+      parsed.properties[uniqueName] = {
+        type: 'string',
+        description: `Inspected field ${uniqueName}`,
+        semanticRole: semanticRole || 'text',
+        initialSelector: selector
+      }
+
+      setSchemaJson(JSON.stringify(parsed, null, 2))
+    } catch (e) {
+      console.error('Failed updating schema with inspected field:', e)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Top Header Bar */}
@@ -124,16 +187,25 @@ export default function App() {
             <div className="flex items-center gap-2">
               <h1 className="font-bold text-base tracking-tight text-slate-100">domdrift</h1>
               <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                v1.0.0
+                v1.1.0 Enterprise
               </span>
             </div>
             <p className="text-[11px] text-slate-400 font-medium">
-              Self-Healing Web Extraction Engine & Multimodal Visual Grounding
+              Autonomous 3-Tier Self-Healing Web Extraction Engine & Visual Studio
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-4 text-xs font-mono">
+          <a
+            href="/metrics"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-emerald-400 transition"
+          >
+            <BarChart3 className="w-3 h-3 text-emerald-400" />
+            <span>/metrics</span>
+          </a>
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
             <Radio className={`w-3 h-3 ${sseConnected ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
             <span>SSE {sseConnected ? 'Streaming' : 'Connecting'}</span>
@@ -148,7 +220,12 @@ export default function App() {
       <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1680px] w-full mx-auto">
         {/* Left Column: Schema Designer & Cache Health (5 cols) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          <SchemaEditor onRun={handleRunExtraction} loading={loading} />
+          <SchemaEditor
+            onRun={handleRunExtraction}
+            loading={loading}
+            schemaJson={schemaJson}
+            onChangeSchema={setSchemaJson}
+          />
           <SelectorHealth cacheData={cacheData} onResetCache={handleResetCache} />
         </div>
 
@@ -159,6 +236,7 @@ export default function App() {
               url={currentUrl || lastRecord?.url || ''}
               lastUpdated={lastRecord?.timestamp || null}
               tiersUsed={lastRecord?.tiersUsed || {}}
+              onAddInspectedField={handleAddInspectedField}
             />
           </div>
           <ExtractionData record={lastRecord} />

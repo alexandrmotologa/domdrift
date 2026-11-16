@@ -22,12 +22,13 @@ type FieldDefinition struct {
 
 // ExtractionSchema represents a target structured entity to extract.
 type ExtractionSchema struct {
-	Title       string                     `json:"title"`
-	Description string                     `json:"description,omitempty"`
-	Type        string                     `json:"type"`
-	Required    []string                   `json:"required,omitempty"`
-	Properties  map[string]FieldDefinition `json:"properties"`
-	Fields      []FieldDefinition          `json:"-"` // Ordered list
+	Title        string                     `json:"title"`
+	Description  string                     `json:"description,omitempty"`
+	Type         string                     `json:"type"` // "object" or "array"
+	ItemSelector string                     `json:"itemSelector,omitempty"` // For array extractions
+	Required     []string                   `json:"required,omitempty"`
+	Properties   map[string]FieldDefinition `json:"properties"`
+	Fields       []FieldDefinition          `json:"-"` // Ordered list
 }
 
 // LoadSchema reads and validates an extraction schema file.
@@ -38,11 +39,12 @@ func LoadSchema(path string) (*ExtractionSchema, error) {
 	}
 
 	var raw struct {
-		Title       string                     `json:"title"`
-		Description string                     `json:"description,omitempty"`
-		Type        string                     `json:"type"`
-		Required    []string                   `json:"required,omitempty"`
-		Properties  map[string]FieldDefinition `json:"properties"`
+		Title        string                     `json:"title"`
+		Description  string                     `json:"description,omitempty"`
+		Type         string                     `json:"type"`
+		ItemSelector string                     `json:"itemSelector,omitempty"`
+		Required     []string                   `json:"required,omitempty"`
+		Properties   map[string]FieldDefinition `json:"properties"`
 	}
 
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -55,11 +57,12 @@ func LoadSchema(path string) (*ExtractionSchema, error) {
 	}
 
 	schema := &ExtractionSchema{
-		Title:       raw.Title,
-		Description: raw.Description,
-		Type:        raw.Type,
-		Required:    raw.Required,
-		Properties:  make(map[string]FieldDefinition),
+		Title:        raw.Title,
+		Description:  raw.Description,
+		Type:         raw.Type,
+		ItemSelector: raw.ItemSelector,
+		Required:     raw.Required,
+		Properties:   make(map[string]FieldDefinition),
 	}
 
 	for name, field := range raw.Properties {

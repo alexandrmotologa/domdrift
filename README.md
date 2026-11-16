@@ -16,11 +16,14 @@ The synthesized selector is validated across sibling elements, written to a pers
 
 - High performance Go core with memory footprint below 20MB RAM in idle state.
 - Pure WebSocket Chrome DevTools Protocol bridge with stealth flags and no Node.js runtime dependency.
+- Stealth v2 fingerprint evasion suite masking automation flags, navigator properties, and WebGL renderer.
 - Three-tier extraction protocol: Cached Selectors, AXTree Semantics, and Multimodal Visual Grounding.
+- Single-entity and multi-card catalog extraction with item-level self-healing.
 - Entropy-based selector synthesis minimizing fragility against randomized CSS classes.
 - Streaming output formats: JSONL, columnar Parquet, and authenticated HMAC-SHA256 webhooks.
+- Prometheus `/metrics` endpoint exporting live telemetry for selector health, extraction duration, and drift events.
 - Built-in canary mutation test server for validating self-healing routines across DOM version mutations.
-- Embedded React 19 studio interface for interactive schema design, live DOM inspection, and drift telemetry.
+- Embedded React 19 studio interface with interactive point-and-click visual field inspection, schema designer, and live DOM telemetry.
 
 ## System Architecture
 

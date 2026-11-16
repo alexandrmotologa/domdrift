@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
-import { Play, Code2, Sparkles, Sliders } from 'lucide-react'
+import { Play, Code2, Sparkles, Sliders, Layers } from 'lucide-react'
 
 interface SchemaEditorProps {
   onRun: (url: string, schema: any) => void
   loading: boolean
+  schemaJson: string
+  onChangeSchema: (val: string) => void
 }
 
 const DEFAULT_ECOMMERCE_SCHEMA = {
@@ -39,13 +41,39 @@ const DEFAULT_ECOMMERCE_SCHEMA = {
   }
 }
 
-export const SchemaEditor: React.FC<SchemaEditorProps> = ({ onRun, loading }) => {
+const DEFAULT_CATALOG_SCHEMA = {
+  title: "CatalogProducts",
+  type: "array",
+  itemSelector: ".product-card, ._card_4b2",
+  required: ["title", "price"],
+  properties: {
+    title: {
+      type: "string",
+      description: "Product name in catalog item",
+      semanticRole: "heading",
+      initialSelector: ".title, h2, [role='heading']"
+    },
+    price: {
+      type: "string",
+      description: "Price in catalog item",
+      semanticRole: "price",
+      pattern: "[$€£¥₹]?\\s*[0-9]+([.,][0-9]{2})?",
+      initialSelector: ".price, span"
+    }
+  }
+}
+
+export const SchemaEditor: React.FC<SchemaEditorProps> = ({
+  onRun,
+  loading,
+  schemaJson,
+  onChangeSchema,
+}) => {
   const [url, setUrl] = useState('http://127.0.0.1:9090/v1')
-  const [schemaJson, setSchemaJson] = useState(JSON.stringify(DEFAULT_ECOMMERCE_SCHEMA, null, 2))
   const [jsonError, setJsonError] = useState<string | null>(null)
 
   const handleJsonChange = (val: string) => {
-    setSchemaJson(val)
+    onChangeSchema(val)
     try {
       JSON.parse(val)
       setJsonError(null)
@@ -71,13 +99,20 @@ export const SchemaEditor: React.FC<SchemaEditorProps> = ({ onRun, loading }) =>
           <h3 className="font-semibold text-slate-100 text-sm">Extraction Schema & Target</h3>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-slate-400">
-          <span>Canary presets:</span>
-          {['v1', 'v2', 'v3'].map((v) => (
+          <span>Canary:</span>
+          {['v1', 'v2', 'v3', 'v1/catalog', 'v2/catalog'].map((v) => (
             <button
               key={v}
               type="button"
-              onClick={() => setUrl(`http://127.0.0.1:9090/${v}`)}
-              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 font-mono text-[11px] transition"
+              onClick={() => {
+                setUrl(`http://127.0.0.1:9090/${v}`)
+                if (v.includes('catalog')) {
+                  onChangeSchema(JSON.stringify(DEFAULT_CATALOG_SCHEMA, null, 2))
+                } else {
+                  onChangeSchema(JSON.stringify(DEFAULT_ECOMMERCE_SCHEMA, null, 2))
+                }
+              }}
+              className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 font-mono text-[10px] transition"
             >
               /{v}
             </button>
@@ -100,7 +135,9 @@ export const SchemaEditor: React.FC<SchemaEditorProps> = ({ onRun, loading }) =>
       {/* Schema JSON Editor */}
       <div className="flex-1 flex flex-col min-h-[220px]">
         <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs font-medium text-slate-400">Target Entity Schema (JSON Schema)</label>
+          <label className="text-xs font-medium text-slate-400 flex items-center gap-2">
+            <span>Target Schema (Single Entity or Multi-Card Array)</span>
+          </label>
           {jsonError && <span className="text-[11px] text-rose-400 font-mono">{jsonError}</span>}
         </div>
         <textarea

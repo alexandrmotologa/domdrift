@@ -160,6 +160,9 @@ func NewSession(ctx context.Context, client *CDPClient) (*Session, error) {
 		}
 	}
 
+	// Register stealth evasions script on every new document
+	_ = sess.ApplyStealthEvasions(ctx)
+
 	return sess, nil
 }
 

@@ -2,6 +2,7 @@ package extractor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -52,6 +53,91 @@ func NewOrchestrator(cfg *config.Config, cache *healing.SelectorCache, onDrift f
 		synthesizer: healing.NewSynthesizer(),
 		onDrift:     onDrift,
 	}
+}
+
+// Extract executes single-entity or multi-card list extraction based on schema type.
+func (o *Orchestrator) Extract(ctx context.Context, sess *browser.Session, targetURL string, schema *config.ExtractionSchema) ([]*ExtractedRecord, error) {
+	if schema.Type == "array" || schema.ItemSelector != "" {
+		return o.ExtractList(ctx, sess, targetURL, schema)
+	}
+
+	rec, err := o.ExtractEntity(ctx, sess, targetURL, schema)
+	if err != nil {
+		return nil, err
+	}
+	return []*ExtractedRecord{rec}, nil
+}
+
+// ExtractList extracts an array of repeated items/cards from a page.
+func (o *Orchestrator) ExtractList(ctx context.Context, sess *browser.Session, targetURL string, schema *config.ExtractionSchema) ([]*ExtractedRecord, error) {
+	itemSelector := schema.ItemSelector
+	if itemSelector == "" {
+		itemSelector = ".card, .product-card, .item, article"
+	}
+
+	countScript := fmt.Sprintf(`(() => document.querySelectorAll(%q).length)()`, itemSelector)
+	rawCount, err := sess.Evaluate(ctx, countScript)
+	if err != nil {
+		return nil, fmt.Errorf("failed counting items for selector %s: %w", itemSelector, err)
+	}
+
+	var count int
+	_ = json.Unmarshal(rawCount, &count)
+	if count == 0 {
+		return nil, fmt.Errorf("no items found matching itemSelector %q", itemSelector)
+	}
+
+	var records []*ExtractedRecord
+	domain := healing.ExtractDomain(targetURL)
+
+	for i := 0; i < count; i++ {
+		record := &ExtractedRecord{
+			URL:       targetURL,
+			Timestamp: time.Now().UTC(),
+			Data:      make(map[string]interface{}),
+			TiersUsed: make(map[string]int),
+		}
+
+		for _, field := range schema.Fields {
+			cached, hasCached := o.cache.Get(domain, field.Name)
+			fieldSel := field.InitialSelector
+			if hasCached && cached.Selector != "" {
+				fieldSel = cached.Selector
+			}
+
+			// Evaluate scoped to card i
+			scopedScript := fmt.Sprintf(`(() => {
+				const cards = document.querySelectorAll(%q);
+				if (!cards || !cards[%d]) return null;
+				const el = cards[%d].querySelector(%q);
+				return el ? (el.innerText || el.textContent || el.value || "").trim() : null;
+			})()`, itemSelector, i, i, fieldSel)
+
+			rawVal, err := sess.Evaluate(ctx, scopedScript)
+			var val string
+			if err == nil {
+				_ = json.Unmarshal(rawVal, &val)
+			}
+
+			if val != "" {
+				record.Data[field.Name] = val
+				record.TiersUsed[field.Name] = 1
+				continue
+			}
+
+			// If scoped selector failed on this card, attempt recovery
+			val, tier, err := o.extractFieldWithFallback(ctx, sess, domain, targetURL, field, schema, record)
+			if err == nil && val != "" {
+				record.Data[field.Name] = val
+				record.TiersUsed[field.Name] = tier
+			}
+		}
+
+		records = append(records, record)
+	}
+
+	_ = o.cache.Save()
+	return records, nil
 }
 
 // ExtractEntity runs the 3-tier extraction sequence across all fields in the schema.

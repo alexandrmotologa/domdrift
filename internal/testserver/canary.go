@@ -12,6 +12,8 @@ func StartCanaryServer(port int) (*http.Server, error) {
 	mux.HandleFunc("/v1", handleV1Clean)
 	mux.HandleFunc("/v2", handleV2Hashed)
 	mux.HandleFunc("/v3", handleV3Redesigned)
+	mux.HandleFunc("/v1/catalog", handleV1Catalog)
+	mux.HandleFunc("/v2/catalog", handleV2Catalog)
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok","server":"domdrift-canary"}`))
@@ -113,6 +115,76 @@ func handleV3Redesigned(w http.ResponseWriter, r *http.Request) {
       <div class="badge-stock">In Stock (14 units)</div>
     </div>
     <div style="font-size: 12px; color: #94a3b8;">SKU: AERO-WH-900</div>
+  </div>
+</body>
+</html>`))
+}
+
+func handleV1Catalog(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Canary Catalog - V1 Standard</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 30px; background: #f8fafc; }
+    .catalog-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 1000px; }
+    .product-card { background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .title { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
+    .price { font-size: 16px; color: #16a34a; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Electronics Catalog</h1>
+  <div class="catalog-grid">
+    <div class="product-card">
+      <div class="title">Quantum Pro ANC Headphones</div>
+      <div class="price">$299.99</div>
+    </div>
+    <div class="product-card">
+      <div class="title">UltraWide 4K Gaming Monitor 34"</div>
+      <div class="price">$749.50</div>
+    </div>
+    <div class="product-card">
+      <div class="title">Mechanical Wireless Keyboard RGB</div>
+      <div class="price">$129.00</div>
+    </div>
+  </div>
+</body>
+</html>`))
+}
+
+func handleV2Catalog(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Canary Catalog - V2 Hashed</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 30px; background: #f8fafc; }
+    ._grid_98a { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 1000px; }
+    ._card_4b2 { background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    ._tit_87c { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
+    ._pr_11d { font-size: 16px; color: #16a34a; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Electronics Catalog</h1>
+  <div class="_grid_98a">
+    <div class="_card_4b2">
+      <div class="_tit_87c" role="heading">Quantum Pro ANC Headphones</div>
+      <div class="_pr_11d">$299.99</div>
+    </div>
+    <div class="_card_4b2">
+      <div class="_tit_87c" role="heading">UltraWide 4K Gaming Monitor 34"</div>
+      <div class="_pr_11d">$749.50</div>
+    </div>
+    <div class="_card_4b2">
+      <div class="_tit_87c" role="heading">Mechanical Wireless Keyboard RGB</div>
+      <div class="_pr_11d">$129.00</div>
+    </div>
   </div>
 </body>
 </html>`))

@@ -46,8 +46,21 @@ Where:
 
 The synthesized selector is checked against sibling cards in the document to ensure correct cardinality, then committed to `selectors.cache.json`.
 
-## 4. Export Pipelines
+## 4. Export Pipelines & Telemetry
 
 - Streaming JSONL: Appends structured records with metadata (timestamp, source URL, tier used, confidence score).
 - Parquet: Batches records into columnar format for analytical databases.
 - Webhooks: Dispatches extraction payloads with HMAC-SHA256 signatures and exponential backoff retry.
+- Prometheus Metrics (`/metrics`): Exposes standard OpenMetrics gauges and counters for `domdrift_selectors_total` partitioned by tier (Tier 1/2/3), `domdrift_drift_events_total`, and process resource telemetry.
+
+## 5. Anti-Detect Evasion Suite (Stealth v2)
+
+To withstand enterprise bot mitigation mechanisms (Cloudflare, DataDome), `domdrift` executes `Page.addScriptToEvaluateOnNewDocument` upon tab instantiation:
+- Erases `navigator.webdriver` property.
+- Mocks standard `window.chrome` and `navigator.plugins`.
+- Spoofs WebGL vendor and renderer strings (`Intel(R) Iris(TM) Plus Graphics 640`).
+- Overrides notification permissions and language arrays to match organic browser sessions.
+
+## 6. Multi-Card Catalog Extraction
+
+For catalog and tabular pages containing repeated item clusters, schemas with `type: "array"` define an `itemSelector` alongside property field rules. The engine counts matching card containers, scopes DOM queries per card index, and applies self-healing routines across item boundaries.

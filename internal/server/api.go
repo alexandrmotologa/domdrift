@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -78,6 +79,8 @@ func (s *StudioServer) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/cache/reset", s.handleCacheReset)
 	mux.HandleFunc("/api/drift-history", s.handleDriftHistory)
 	mux.HandleFunc("/api/screenshot", s.handleScreenshot)
+	mux.HandleFunc("/api/inspect-point", s.handleInspectPoint)
+	mux.HandleFunc("/metrics", s.handleMetrics)
 }
 
 func (s *StudioServer) handleExtract(w http.ResponseWriter, r *http.Request) {
@@ -129,16 +132,22 @@ func (s *StudioServer) handleExtract(w http.ResponseWriter, r *http.Request) {
 		s.hub.Broadcast("drift_event", event)
 	})
 
-	record, err := orch.ExtractEntity(ctx, s.session, req.URL, req.Schema)
+	records, err := orch.Extract(ctx, s.session, req.URL, req.Schema)
 	if err != nil {
 		http.Error(w, "Extraction failed: "+err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
-	s.hub.Broadcast("extraction_record", record)
+	for _, rec := range records {
+		s.hub.Broadcast("extraction_record", rec)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(record)
+	if len(records) == 1 {
+		_ = json.NewEncoder(w).Encode(records[0])
+	} else {
+		_ = json.NewEncoder(w).Encode(records)
+	}
 }
 
 func (s *StudioServer) handleCache(w http.ResponseWriter, r *http.Request) {
@@ -178,6 +187,93 @@ func (s *StudioServer) handleScreenshot(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "image/png")
 	_, _ = w.Write(scr)
+}
+
+func (s *StudioServer) handleInspectPoint(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		X int `json:"x"`
+		Y int `json:"y"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	if err := s.SetupBrowser(ctx); err != nil {
+		http.Error(w, "Failed setting up browser session: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	s.mu.Lock()
+	sess := s.session
+	s.mu.Unlock()
+
+	resolver := healing.NewNodeResolver()
+	resolved, err := resolver.Resolve(ctx, sess, req.X, req.Y)
+	if err != nil {
+		http.Error(w, "Failed resolving node: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	synthesizer := healing.NewSynthesizer()
+	stableSel, confidence, err := synthesizer.SynthesizeStableSelector(ctx, sess, resolved.Node)
+	if err != nil {
+		stableSel = resolved.Node.LocalName
+		confidence = 0.50
+	}
+
+	// Retrieve text content using the synthesized selector
+	var textVal string
+	if stableSel != "" {
+		script := fmt.Sprintf(`(() => {
+			const el = document.querySelector(%q);
+			return el ? (el.innerText || el.textContent || el.value || "").trim() : "";
+		})()`, stableSel)
+		if raw, err := sess.Evaluate(ctx, script); err == nil {
+			_ = json.Unmarshal(raw, &textVal)
+		}
+	}
+
+	res := map[string]interface{}{
+		"x":                   req.X,
+		"y":                   req.Y,
+		"nodeId":              resolved.NodeID,
+		"tagName":             resolved.Node.LocalName,
+		"synthesizedSelector": stableSel,
+		"confidence":          confidence,
+		"text":                textVal,
+		"attributes":          resolved.Node.AttributeMapCache,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(res)
+}
+
+func (s *StudioServer) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	driftCount := len(s.driftHistory)
+	s.mu.RUnlock()
+
+	t1, t2, t3 := s.cache.GetStats()
+
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	fmt.Fprintf(w, "# HELP domdrift_selectors_total Total count of learned selectors by tier\n")
+	fmt.Fprintf(w, "# TYPE domdrift_selectors_total gauge\n")
+	fmt.Fprintf(w, "domdrift_selectors_total{tier=\"1\"} %d\n", t1)
+	fmt.Fprintf(w, "domdrift_selectors_total{tier=\"2\"} %d\n", t2)
+	fmt.Fprintf(w, "domdrift_selectors_total{tier=\"3\"} %d\n", t3)
+	fmt.Fprintf(w, "\n# HELP domdrift_drift_events_total Total count of selector drift events healed\n")
+	fmt.Fprintf(w, "# TYPE domdrift_drift_events_total counter\n")
+	fmt.Fprintf(w, "domdrift_drift_events_total %d\n", driftCount)
 }
 
 // Close cleans up browser and listeners.

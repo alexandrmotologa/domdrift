@@ -166,14 +166,14 @@ func runExtract(args []string) {
 	})
 
 	start := time.Now()
-	record, err := orch.ExtractEntity(ctx, sess, *targetURL, schema)
+	records, err := orch.Extract(ctx, sess, *targetURL, schema)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Extraction failed: %v\n", err)
 		os.Exit(1)
 	}
 
 	duration := time.Since(start)
-	fmt.Printf("[domdrift] Extraction succeeded in %v\n", duration)
+	fmt.Printf("[domdrift] Extraction succeeded: %d records in %v\n", len(records), duration)
 
 	// Save to JSONL
 	writer, err := export.NewJSONLWriter(*outputPath)
@@ -183,15 +183,24 @@ func runExtract(args []string) {
 	}
 	defer writer.Close()
 
-	if err := writer.Write(record); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed exporting record: %v\n", err)
-		os.Exit(1)
+	for _, rec := range records {
+		if err := writer.Write(rec); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed exporting record: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
-	fmt.Printf("[domdrift] Record written to %s:\n", *outputPath)
+	fmt.Printf("[domdrift] Records written to %s:\n", *outputPath)
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	_ = enc.Encode(record.Data)
+	for i, rec := range records {
+		if i < 3 {
+			_ = enc.Encode(rec.Data)
+		}
+	}
+	if len(records) > 3 {
+		fmt.Printf("... and %d more records\n", len(records)-3)
+	}
 }
 
 func runHeal(args []string) {

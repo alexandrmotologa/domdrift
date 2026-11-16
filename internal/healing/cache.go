@@ -164,3 +164,23 @@ func (c *SelectorCache) RecordFailure(domain, field string) {
 		}
 	}
 }
+
+// GetStats returns counts of selectors per recovery tier.
+func (c *SelectorCache) GetStats() (t1, t2, t3 int) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	for _, fields := range c.Data {
+		for _, sel := range fields {
+			switch sel.Tier {
+			case 1:
+				t1++
+			case 2:
+				t2++
+			case 3:
+				t3++
+			}
+		}
+	}
+	return
+}
